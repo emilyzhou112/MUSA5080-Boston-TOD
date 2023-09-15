@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r setup_packages}
 
 # list of required packages
-packages <- c( "tidyverse", "ggplot2", "svDialogs", "tidycensus", "sf", "knitr", "rmarkdown")
+packages <- c( "tidyverse", "ggplot2", "svDialogs", "tidycensus", "sf", "knitr", "rmarkdown", "kableExtra")
 
 # install and load required packages
 package.check <- lapply(
@@ -27,6 +27,7 @@ package.check <- lapply(
   }
 )
 
+# global options 
 options(scipen=999)
 options(tigris_class = "sf")
 options(digits = 3)
@@ -167,16 +168,111 @@ boston19 <-
 
 ```
 
-```{r}
+```{r combine_boston_data}
 
 allTracts <- rbind(boston10,boston19)
 
 ```
 
 
+```{r transit_data}
+
+boston_stops <- st_read("https://raw.githubusercontent.com/emilyzhou112/MUSA5080-Boston-TOD/main/data/boston_stps.geojson") %>%
+  st_transform(st_crs(boston10)) %>% 
+  mutate(stops = ifelse(grepl("/", LINE), "OTHER", LINE)) 
+
+```
+
+
+```{r visualize_stops}
+
+ggplot() + 
+  geom_sf(data=st_union(boston10), fill= "#D3D3D3", color = "white", size = 2) +
+  geom_sf(data=boston_stops, 
+          aes(colour = stops %>% str_to_title()),
+          show.legend = "point", size= 1.5) + 
+  scale_colour_manual(values = c("#7eb0d5","#b2e061", "#ffb55a", "#ffee65", "#fd7f6f", "#bd7ebe")) +
+  labs(title = "Boston MBTA Rapid Transit Stops",
+       caption = "Data: MassGIS 2022",
+       colour = "Lines") +
+  theme_light()
+
+```
+
+```{r delineate_TOD}
+
+stops_buffer <- st_union(st_buffer(boston_stops, 804)) %>% 
+      st_sf() 
+
+allTracts.group <- 
+  rbind(
+    st_centroid(allTracts)[stops_buffer,] %>%
+      st_drop_geometry() %>%
+      left_join(allTracts) %>%
+      st_sf() %>%
+      mutate(TOD = "TOD"),
+    st_centroid(allTracts)[stops_buffer, op = st_disjoint] %>%
+      st_drop_geometry() %>%
+      left_join(allTracts) %>%
+      st_sf() %>%
+      mutate(TOD = "Non-TOD")) %>%
+  mutate(MedRent.inf = ifelse(year == "2010", MedRent * 1.17, MedRent)) 
+
+```
+
+
+```{r visualize_tod}
+
+allTracts.group %>% 
+  filter(year == 2010 ) %>% 
+  ggplot() + 
+  geom_sf(aes(fill = TOD), color = "transparent") +
+  scale_fill_manual(values = c("#beb9db","#fdcce5")) +
+  geom_sf(data=boston_stops, 
+          color = "#fd7f6f", size= 0.8)+
+  labs(title = "Transient Oriented Development Tracts",
+       subtitle = "Tracts within 0.5 mile of transit stops",
+       caption = "Data: American Community Survey 2010 and 2019",
+       fill = "Tracts Types") +
+  theme_light() +   
+  theme(plot.subtitle = element_text(face = "italic"))
+
+
+```
+
+
+## Demographic Characteristics 
 
 
 
+
+
+
+
+
+```{r}
+
+allTracts.Summary <- 
+  st_drop_geometry(allTracts.group) %>%
+  group_by(year, TOD) %>%
+  summarize(Rent = mean(MedRent, na.rm = T),
+            Income = mean(MedHHInc, na.rm = T),
+            Pop = mean(TotalPop, na.rm = T),
+            PctWhite = mean(pctWhite, na.rm = T),
+            PctMinority = mean(pctMinority, na.rm = T),
+            PctAging = mean(pctAging, na.rm = T),
+            PctBach = mean(pctBachelors, na.rm = T),
+            PctPoverty = mean(pctPoverty, na.rm = T),
+            PctNoCar = mean(pctNoCar, na.rm = T),
+            PctRenter = mean(pctRenter, na.rm = T),
+            PctForeign = mean(pctForeigner, na.rm = T))
+
+kable(allTracts.Summary, format = "html") %>%
+ kable_styling(full_width = T) %>% 
+  footnote(general_title = "\n",
+           general = "Table 1")
+
+```
 
 
 
