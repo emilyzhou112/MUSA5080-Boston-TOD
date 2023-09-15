@@ -1,0 +1,183 @@
+---
+title: "Transient Oriented Development in Boston"
+author: "Emily Zhou"
+date: "2023-09-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r setup_packages}
+
+# list of required packages
+packages <- c( "tidyverse", "ggplot2", "svDialogs", "tidycensus", "sf", "knitr", "rmarkdown")
+
+# install and load required packages
+package.check <- lapply(
+  packages,
+  FUN = function(x) {
+    if (!require(x, character.only = TRUE)) {
+      install.packages(x, dependencies = TRUE, quietly=TRUE)
+      library(x, character.only = TRUE)
+    }
+  }
+)
+
+options(scipen=999)
+options(tigris_class = "sf")
+options(digits = 3)
+
+```
+
+
+```{r load_key}
+
+census_api_key(dlgInput(
+  "Enter a Census API Key", # ask for an api key
+  Sys.getenv("CENSUS_API_KEY")
+)$res,
+overwrite = TRUE)
+
+```
+
+
+```{r define_acs_var}
+
+acs_var = c("B02001_001E", # total population
+            "B02001_002E", # white population
+            "B02001_003E", # black population
+            "B02001_005E", # asian population
+            "B03002_012E", # latinx population
+            "B01001_022E", # male 70-74
+            "B01001_023E", # male 75-79
+            "B01001_024E", # male 80-85
+            "B01001_025E", # male over 85
+            "B01001_046E", # female 70-74
+            "B01001_047E", # female 75-79
+            "B01001_048E", # female 80-85
+            "B01001_049E", # female over 85
+            "B19013_001E", # median household income
+            "B25058_001E", # median rent
+            "B06012_002E", # total poverty
+            "B06009_005E", # bachelor
+            "B06009_006E", # graduate
+            "B08014_002E", # no car
+            "B25026_009E", # renter
+            "B05001_006E" # non-us citizen
+            )
+
+```
+
+
+```{r non_boston_county}
+
+remove <- c("25025180400", "25025990101", "25025180301", "25025160400", "25025180500", "25025160601", "25025180200", "25025160300", "25025160200", "25025180101", "25025170502", "25025160502", "25025170701", "25025170501", "25025170800", "25025170200", "25025170400", "25025170100", "25025170100", "25025170601", "25025170300", "25025170702","25025160602", "25025160501", "25025160101")
+
+```
+
+
+```{r boston_2010_data}
+
+boston10 <- 
+  get_acs(geography = "tract", variables = acs_var, 
+          year=2010, state='MA', county=025, geometry=T, output="wide") %>% 
+  st_transform('EPSG:26986') %>% 
+  filter(!(GEOID %in% remove)) %>% 
+  rename(TotalPop = B02001_001E, 
+         Whites = B02001_002E,
+         African_Americans = B02001_003E,
+         Asians = B02001_005E,
+         Latinx = B03002_012E,
+         M70_74 = B01001_022E,
+         M75_79 = B01001_023E,
+         M80_85 = B01001_024E,
+         M85 = B01001_025E,
+         FM70_74 = B01001_046E,
+         FM75_79 = B01001_047E,
+         FM80_85 = B01001_048E,
+         FM85 = B01001_049E,
+         MedHHInc = B19013_001E, 
+         MedRent = B25058_001E,
+         TotalPoverty = B06012_002E,
+         College = B06009_005E,
+         Graduate = B06009_006E,
+         NoCar = B08014_002E,
+         Renter = B25026_009E,
+         Foreigner = B05001_006E
+         ) %>% 
+  dplyr::select(-starts_with("B"))%>%
+  mutate(pctWhite = ifelse(TotalPop > 0, Whites / TotalPop, 0),
+         pctMinority = ifelse(TotalPop > 0, (African_Americans + Asians + Latinx ) / TotalPop, 0),
+         pctAging = ifelse(TotalPop > 0, (M70_74 + M75_79 + M80_85 + M85 + FM70_74 + FM75_79 + FM80_85 + FM85 ) / TotalPop, 0),
+         pctBachelors = ifelse(TotalPop > 0, ((College + Graduate) / TotalPop), 0),
+         pctPoverty = ifelse(TotalPop > 0, TotalPoverty / TotalPop, 0),
+         pctNoCar = ifelse(TotalPop > 0, NoCar / TotalPop, 0),
+         pctRenter = ifelse(TotalPop > 0, Renter / TotalPop, 0),
+         pctForeigner = ifelse(TotalPop > 0, Foreigner / TotalPop, 0),
+         year = "2010") %>% 
+  dplyr::select(-Whites,-African_Americans, -Asians, -Latinx, -M70_74, -M75_79, -M80_85, -M85, -FM70_74, -FM75_79, -FM80_85, -FM85, -College, -Graduate, -TotalPoverty, -NoCar, -Renter, -Foreigner)
+
+```
+
+
+```{r boston_2019_data}
+
+boston19 <- 
+  get_acs(geography = "tract", variables = acs_var, 
+          year=2019, state='MA', county=025, geometry=T, output="wide") %>% 
+  st_transform('EPSG:26986') %>% 
+  filter(!(GEOID %in% remove)) %>% 
+  rename(TotalPop = B02001_001E, 
+         Whites = B02001_002E,
+         African_Americans = B02001_003E,
+         Asians = B02001_005E,
+         Latinx = B03002_012E,
+         M70_74 = B01001_022E,
+         M75_79 = B01001_023E,
+         M80_85 = B01001_024E,
+         M85 = B01001_025E,
+         FM70_74 = B01001_046E,
+         FM75_79 = B01001_047E,
+         FM80_85 = B01001_048E,
+         FM85 = B01001_049E,
+         MedHHInc = B19013_001E, 
+         MedRent = B25058_001E,
+         TotalPoverty = B06012_002E,
+         College = B06009_005E,
+         Graduate = B06009_006E,
+         NoCar = B08014_002E,
+         Renter = B25026_009E,
+         Foreigner = B05001_006E
+         ) %>% 
+  dplyr::select(-starts_with("B")) %>% 
+    mutate(pctWhite = ifelse(TotalPop > 0, Whites / TotalPop, 0),
+         pctMinority = ifelse(TotalPop > 0, (African_Americans + Asians + Latinx ) / TotalPop, 0),
+         pctAging = ifelse(TotalPop > 0, (M70_74 + M75_79 + M80_85 + M85 + FM70_74 + FM75_79 + FM80_85 + FM85 ) / TotalPop, 0),
+         pctBachelors = ifelse(TotalPop > 0, ((College + Graduate) / TotalPop), 0),
+         pctPoverty = ifelse(TotalPop > 0, TotalPoverty / TotalPop, 0),
+         pctNoCar = ifelse(TotalPop > 0, NoCar / TotalPop, 0),
+         pctRenter = ifelse(TotalPop > 0, Renter / TotalPop, 0),
+         pctForeigner = ifelse(TotalPop > 0, Foreigner / TotalPop, 0),
+         year = "2019") %>% 
+  dplyr::select(-Whites,-African_Americans, -Asians, -Latinx, -M70_74, -M75_79, -M80_85, -M85, -FM70_74, -FM75_79, -FM80_85, -FM85, -College, -Graduate, -TotalPoverty, -NoCar, -Renter, -Foreigner)
+
+```
+
+```{r}
+
+allTracts <- rbind(boston10,boston19)
+
+```
+
+
+
+
+
+
+
+
+
