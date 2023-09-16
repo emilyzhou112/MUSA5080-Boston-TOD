@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 Version 1.0 \| First Created Sep 15, 2023 \| Updated Sep 20, 2023
+Key words: Multiple Ring Buffer, Indicators, Transit Oriented Development, Gentrification, Boston
 
 # Introduction
 
@@ -25,7 +26,7 @@ Version 1.0 \| First Created Sep 15, 2023 \| Updated Sep 20, 2023
 ```{r setup_packages}
 
 # list of required packages
-packages <- c( "tidyverse", "ggplot2", "svDialogs", "tidycensus", "sf", "knitr", "rmarkdown", "kableExtra", "stringr")
+packages <- c( "tidyverse", "ggplot2", "svDialogs", "tidycensus", "sf", "knitr", "rmarkdown", "kableExtra", "stringr", "biscale", "cowplot")
 
 # install and load required packages
 package.check <- lapply(
@@ -42,6 +43,8 @@ package.check <- lapply(
 options(scipen=999)
 options(tigris_class = "sf")
 options(digits = 3)
+
+source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-Landing/master/functions.r")
 
 ```
 
@@ -210,6 +213,7 @@ ggplot() +
        caption = "Data: American Community Survey 2010 and 2019",
        color = "Boston") +
   theme_light() +
+  theme(plot.title = element_text(size = 12, face = "bold"))
   annotate(geom = "text",x = -71.10,y = 42.3, size = 4, label = "Boston",color = "white") +
   annotate(geom = "text",x = -71.04,y = 42.40, size = 3, label = "Chelsea",color = "black") +
   annotate(geom = "text",x = -71.01,y = 42.42, size = 3, label = "Revere",color = "black") +
@@ -233,7 +237,8 @@ ggplot() +
   labs(title = "Boston MBTA Rapid Transit Stops",
        caption = "Data: MassGIS 2022",
        colour = "Lines") +
-  theme_light()
+  theme_light() +
+  theme(plot.title = element_text(size = 12, face = "bold"))
 
 ```
 
@@ -274,7 +279,8 @@ allTracts.group %>%
        caption = "Data: American Community Survey 2010 and 2019",
        fill = "Tracts Types") +
   theme_light() +   
-  theme(plot.subtitle = element_text(face = "italic"))
+  theme(plot.subtitle = element_text(size = 9,face = "italic"),
+        plot.title = element_text(size = 12, face = "bold"))
 
 
 ```
@@ -509,8 +515,7 @@ allTracts.group %>%
 
 ## Overall Analysis 
 
-
-```{r}
+```{r all_variables_summarize}
 
 allTracts.Summary <- 
   st_drop_geometry(allTracts.group) %>%
@@ -526,15 +531,30 @@ allTracts.Summary <-
             PctRenter = mean(pctRenter, na.rm = T),
             PctForeign = mean(pctForeigner, na.rm = T))
 
+```
+
+
+```{r all_variables_table}
+
 kable(allTracts.Summary, format = "html") %>%
- kable_styling(full_width = T) %>% 
+ kable_styling(full_width = T, 
+               bootstrap_options = c("striped", "hover"),
+               font_size = 12) %>% 
   footnote(general_title = "\n",
-           general = "Table 1")
+           general = "Table 1: Comparaing Population Characteristics Across Space and Time ") %>% 
+  row_spec(0, font_size = 14) %>% 
+  row_spec(1, color = "white", background = "#7eb0d5") %>% 
+  row_spec(2, color = "white", background = "#b2e061") %>% 
+  row_spec(3, color = "white", background = "#7eb0d5") %>% 
+  row_spec(4, color = "white", background = "#b2e061") %>% 
+  column_spec(1:2, bold = T)
+
+# 
 
 ```
 
 
-```{r all_variables}
+```{r all_variables_plot}
 
 allTracts.Summary %>%
   gather(Variable, Value, -year, -TOD) %>%
@@ -542,7 +562,8 @@ allTracts.Summary %>%
   geom_bar(stat = "identity", position = "dodge") +
   facet_wrap(~Variable, scales = "free", ncol=5) +
   scale_fill_manual(values = c("#7eb0d5", "#b2e061")) +  
-  labs(title = "Indicator Differences Across Time and Space") +
+  labs(title = "Indicator Differences Across Time and Space",
+       caption = "Data: American Community Survey 2010 and 2019") +
   theme(legend.position = "bottom",
         axis.ticks.x=element_blank(),
         axis.ticks.y=element_blank(),
@@ -554,17 +575,55 @@ allTracts.Summary %>%
 
 
 
+```{r percentage_change}
+
+allTracts.Long <- allTracts.Summary %>%
+  pivot_longer(cols = c(Rent, Income, Pop, PctMinority, PctAging, PctBach, PctPoverty, PctNoCar, PctRenter, PctForeign), names_to = "Variable", values_to = "Value") %>%
+  pivot_wider(names_from = year, values_from = Value, names_prefix = "Year") %>% 
+  mutate(pct_change = (Year2019-Year2010) / Year2010)
+
+```
 
 
+```{r all_variables_bar}
 
-## Further Planning 
+allTracts.Long %>% 
+  ggplot() +
+  geom_bar(aes(x = Variable, y = pct_change, fill = TOD),
+           stat = "identity") +
+  facet_wrap(~TOD) +
+  coord_flip() +
+  scale_fill_manual(values = c("#7eb0d5", "#b2e061")) +  
+  labs(title = "Percentage Change 2010-2019 for TOD and Non-TOD Tracks",
+       caption = "Data: American Community Survey 2010 and 2019") +
+  ylab ("Percentage Change") +
+  theme(legend.position = "bottom",
+        axis.ticks.x=element_blank(),
+        axis.ticks.y=element_blank(),
+        plot.title = element_text(size = 12, face = "bold"),
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = "grey", fill=NA, size=0.8)
+        ) 
+  
 
 
+```
 
+Observations: 
+- Rent in Boston has been increasing, but the increase in TOD is more salient. 
+- Population in Boston has been increasing, but the increase in non-TOD is more salient
+- Renters stay pretty much the same throughout. 
+- Poverty rate greatly reduced, especially in TOD areas. 
+- More people in Non-TOD tracks do not have car. 
+- More minority population starts to live in TOD areas. 
+- Education attainment in Boston greatly increase in both TOD and non-TOD. 
+- Percentage Aging population starts to live in TOD.
+- Income increases in both TOD and non-TOD. 
 
+## Further Analysis 
 
+```{r graduated_prep}
 
-```{r}
 boston_stops$ID <- seq_along(boston_stops$STATION)
 
 stop_attributes <- st_buffer(boston_stops, 804) %>% 
@@ -578,16 +637,119 @@ stop_attributes <- st_buffer(boston_stops, 804) %>%
 
 stops_summary <- boston_stops %>% 
   left_join(stop_attributes, by = "ID")
+
 ```
 
-```{r}
+```{r graduated_pop, warning=FALSE}
+
 ggplot() +
-  geom_sf(data=st_union(boston10)) +
-  geom_sf(data=stops_summary, aes(size=total_population, color = stops)) +
-  scale_size(range = c(0.5, 4), name = "Population") +    
-  scale_color_brewer(palette = "Set2")+ 
-  theme_bw()
+  geom_sf(data=st_union(boston10), fill= "#D3D3D3", color = "white", size = 2) +
+  geom_sf(data=stops_summary, aes(size=total_population, color = stops %>% str_to_title())) +
+  scale_size(range = c(0.5, 3), name = "Population") +    
+  scale_colour_manual(values = c("#7eb0d5","#b2e061", "#ffb55a", "#ffee65", "#fd7f6f", "#bd7ebe"), name = "Stops") +
+  labs(title = "Population within 0.5 Mile of Tansit Stops",
+       subtitle = "Dot size proportional to population",
+       caption = "Data: American Community Survey 2010 and 2019") +
+  theme_light() +   
+  theme(plot.subtitle = element_text(size = 9,face = "italic"),
+        plot.title = element_text(size = 12, face = "bold"))
 ```
 
+```{r graduated_rent, warning=FALSE}
+
+
+ggplot() +
+  geom_sf(data=st_union(boston10), fill= "#D3D3D3", color = "white", size = 2) +
+  geom_sf(data=stops_summary, aes(size=median_rent, color = stops %>% str_to_title())) +
+  scale_size(range = c(0.5, 3), name = "Rent") +    
+  scale_colour_manual(values = c("#7eb0d5","#b2e061", "#ffb55a", "#ffee65", "#fd7f6f", "#bd7ebe"), name = "Stops") +
+  labs(title = "Median Rent within 0.5 Mile of Tansit Stops",
+       subtitle = "Dot size proportional to rent",
+       caption = "Data: American Community Survey 2010 and 2019") +
+  theme_light() +   
+  theme(plot.subtitle = element_text(size = 9,face = "italic"),
+        plot.title = element_text(size = 12, face = "bold"))
+```
+
+```{r boston_MRB}
+
+boston_MRB <- multipleRingBuffer(st_union(boston_stops), 14484, 804)
+ggplot() +
+    geom_sf(data=boston_MRB, aes(fill = distance), color = "#708090") +
+    scale_fill_continuous(low = "#FAF9F6", high = "#beb9db", name= "Distance")+
+    geom_sf(data=st_union(boston10), fill= "#D3D3D3", color = "white", size = 2) +
+    geom_sf(data=boston_stops, 
+          color = "#fd7f6f", size= 0.8) +    
+    labs(title="Half Mile Buffers",
+         subtitle = "Distance in-between each buffer is 0.5 mile",
+         caption = "Data: American Community Survey 2010 and 2019 \nMassGIS 2022") +
+    theme_light() +   
+    theme(plot.subtitle = element_text(size = 9,face = "italic"),
+          plot.title = element_text(size = 12, face = "bold"))
+
+```
+
+```{r line_plot}
+
+allTracts.rings <-
+  st_join(st_centroid(dplyr::select(allTracts, GEOID, year)),
+          boston_MRB) %>%
+  st_drop_geometry() %>%
+  left_join(dplyr::select(allTracts, GEOID, MedRent, year), 
+            by=c("GEOID"="GEOID", "year"="year")) %>%
+  st_sf() 
+
+
+allTracts.rings.summary <- st_drop_geometry(allTracts.rings) %>%
+  group_by(distance, year) %>%
+  summarize(Mean_Rent = mean(MedRent, na.rm=T))
+
+
+ggplot(allTracts.rings.summary, aes(x = distance, y = Mean_Rent)) + 
+  geom_line(aes(color = year), size = 2) + 
+  scale_color_manual(values = c("#7eb0d5", "#b2e061"), name = "Year") +
+  labs(title = "Mean Rent as a Function of Distance to Subway Stations",
+       caption = "Data: American Community Survey 2010 and 2019") +
+  xlab ("Distance from Transit Stops") +
+  ylab("Mean Rent") + 
+  theme(legend.position = "bottom",
+        plot.title = element_text(size = 12, face = "bold"),
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = "grey", fill=NA, size=0.8)
+        ) 
+
+```
 
 ## Bivariate informing planning decisions 
+
+
+```{r bivariate_map}
+
+
+bi_data <- bi_class(boston19, x = pctMinority, y = pctAging, style = "quantile", dim = 3) #  a 3*3 color-schemed bi-variate choropleth 
+
+bi_map <- ggplot() +
+  geom_sf(data = bi_data, mapping = aes(fill = bi_class), color = "transparent", show.legend = FALSE) +
+  bi_scale_fill(pal = "DkCyan", dim = 3) + 
+  labs(title = "Pct Minority, Pct Aging Population") + 
+  geom_sf(data = boston_stops, colour = "red", alpha = 0.8, size = 0.5) +
+  theme_light() +
+  theme(plot.title = element_text(size = 12, face = "bold"))
+
+legend <- bi_legend(pal = "DkCyan",
+                    dim = 3,
+                    xlab = "PctMinority ",
+                    ylab = "PctAging ",
+                    size = 5.8)
+  
+ggdraw() +
+  draw_plot(bi_map, 0, 0, 1, 1) +
+  draw_plot(legend, 0.1, 0.1, 1.2, 0.23)
+```
+
+
+
+
+
+
+
