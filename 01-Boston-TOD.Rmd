@@ -2,7 +2,16 @@
 title: "Transient Oriented Development in Boston"
 author: "Emily Zhou"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  html_document:
+    theme: flatly
+    toc: true
+    toc_float: true
+    code_folding: hide
+    code_download: true
+editor_options:
+  markdown:
+    wrap: sentence
 ---
 
 ```{r setup, include=FALSE}
@@ -14,16 +23,26 @@ Key words: Multiple Ring Buffer, Indicators, Transit Oriented Development, Gentr
 
 # Introduction
 
-- Who is living around transit stations in Boston? 
-- How does the social, economic, and demographic characteristics of households living near transit stations in Boston change over time? 
-- Are Bostonians willing to pay a premium to live in transit-rich areas? 
-- How can planners in Boston be more strategic about developments in transit-rich neighborhoods? 
-- What are the limitations of this methodology to predict transit-oriented development? 
+In city planning, transit-oriented development (TOD) is a type of urban development practice that aims to maximize the amount of residential, business, and leisure space within walking distance of public transport. TOD offers a range of benefits that all contribute to creating a more vibrant, sustainable, and inclusive communities. For example, a community with a strong and dependable transit system and streetscaping elements can discourage vehicle dependence and congestion. This further leads to reduction in greenhouse gas emissions per capita and a smaller carbon footprint. In addition, as cities become more walkable, TOD can stimulate economic growth by attracting business and creating jobs. This includes bringing in mixed-use developments, such as retail, dining, and entertainment options within easy reach of resident. Moreover, TOD increases property values in surrounding areas. For developers and governments, this land value capitalization is particularly important. If renters and home buyers are willing to pay more to live near transit amenities, it should be reflected in higher land values and property tax returns near stations. 
 
-## Key Words
+Transit oriented development has been a large part of Boston’s growth. The Boston Redevelopment Authority has been undertaking a TOD initiative to build on and reinforce Boston's existing and emerging neighborhood centers. Their goal is to **connect all neighborhood centers into a comprehensive transit network** and to **support that network with appropriate development patterns near these neighborhood centers**. To contribute to this work, this report conducts a comprehensive analysis of existing TOD patterns in Boston. Through visualizing temporal changes in demographic, social, and economic characteristics of neighborhoods across Boston, examining the spatial distribution of transit stops, and comparing the differences of development patterns between TOD and Non-TOD tracts, we aim to address the following questions: 
+
+1. Who is living around transit stations in Boston? 
+
+2. How does the social, economic, and demographic characteristics of households living near transit stations in Boston change over time? 
+
+3. Are Bostonians willing to pay a premium to live in transit-rich areas? If residents value these locations, officials should consider changing the zoning code to allow increased density around transit.
+
+4. How can planners in Boston be more strategic about developments in transit-rich neighborhoods in order to satisfy the needs of those who favor transit proximity? 
+
+5. What are the limitations of this methodology to predict transit-oriented development? 
+
+The GitHub repository for this report is available [here](https://github.com/emilyzhou112/MUSA5080-Boston-TOD). 
 
 # Packages and Dataset 
-```{r setup_packages}
+
+
+```{r setup_packages, warning = FALSE, eval = FALSE}
 
 # list of required packages
 packages <- c( "tidyverse", "ggplot2", "svDialogs", "tidycensus", "sf", "knitr", "rmarkdown", "kableExtra", "stringr", "biscale", "cowplot")
@@ -44,6 +63,7 @@ options(scipen=999)
 options(tigris_class = "sf")
 options(digits = 3)
 
+# load in multiple ring buffer function
 source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-Landing/master/functions.r")
 
 ```
@@ -94,7 +114,6 @@ remove <- c("25025180400", "25025990101", "25025180301", "25025160400", "2502518
 
 ```
 
-Need a map for Boston 
 
 ```{r boston_2010_data}
 
@@ -213,7 +232,7 @@ ggplot() +
        caption = "Data: American Community Survey 2010 and 2019",
        color = "Boston") +
   theme_light() +
-  theme(plot.title = element_text(size = 12, face = "bold"))
+  theme(plot.title = element_text(size = 12, face = "bold")) +
   annotate(geom = "text",x = -71.10,y = 42.3, size = 4, label = "Boston",color = "white") +
   annotate(geom = "text",x = -71.04,y = 42.40, size = 3, label = "Chelsea",color = "black") +
   annotate(geom = "text",x = -71.01,y = 42.42, size = 3, label = "Revere",color = "black") +
