@@ -39,10 +39,11 @@ Transit oriented development has been a large part of Boston’s growth. The Bos
 
 The GitHub repository for this report is available [here](https://github.com/emilyzhou112/MUSA5080-Boston-TOD). 
 
-# Packages and Dataset 
+# Data Manipulation
 
+Before we begin our analysis and visualization, there are a couple of data cleaning and manipulation steps that we need to perform as well as some analytical decisions to specify.  
 
-```{r setup_packages, warning = FALSE, eval = FALSE}
+```{r setup_packages, warning = FALSE, eval = FALSE, include=FALSE}
 
 # list of required packages
 packages <- c( "tidyverse", "ggplot2", "svDialogs", "tidycensus", "sf", "knitr", "rmarkdown", "kableExtra", "stringr", "biscale", "cowplot")
@@ -69,7 +70,7 @@ source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-L
 ```
 
 
-```{r load_key}
+```{r load_key, warning = FALSE, eval = FALSE, message=FALSE, include=FALSE}
 
 census_api_key(dlgInput(
   "Enter a Census API Key", # ask for an api key
@@ -79,8 +80,49 @@ overwrite = TRUE)
 
 ```
 
+## ACS Data
 
-```{r define_acs_var}
+We are using the America Community Survey (5-year estimate) for year 2010 and 2019 in this report. We chose the ACS data because it collects detailed demographic, social, economic, and housing data on a wide range of topics, providing a more comprehensive view of a community's characteristics in Boston. We chose 2019 as the end year because COVID-19 since 2020 has drastically changed people's work and travel behaviors: the widespread adoption of remote work during the pandemic would certainly led to decline in the demand for office space and the need for transit-oriented office developments. In order to better understand if there's a difference between individuals living in TOD and Non-TOD neighborhood over time, we chose the following ACS variables, categorized into demographic, social, and economic characteristics, for our analysis. 
+
+| Variable Name              | ACS Name    | 
+| :------------------------: | :----------:|  
+| **Demographic**            |             |
+| Total Population           | B02001_001  |
+| White Population           | B02001_002  |
+| Black Population           | B02001_003  |
+| Asian Population           | B02001_005  |
+| Latinx Population          | B03002_012  |
+| Male 70-74                 | B01001_022  |
+| Male 75-79                 | B01001_023  |
+| Male 80-84                 | B01001_024  |
+| Male over 85               | B01001_025  |
+| Female 70-74               | B01001_046  |
+| Female 75-79               | B01001_047  |
+| Female 80-84               | B01001_048  |
+| Female over 85             | B01001_049  |
+| Non-US Citizen             | B05001_006  |
+| **Economic**               |             |
+| Median Household Income    | B19013_001  |
+| Median Rent                | B25058_001  |
+| Population under Poverty   | B06012_002  |
+| **Social**                 |             |
+| Bachelor Degree            | B06009_005  |
+| Graduate Degree            | B06009_006  |
+| Renter Occupied Household  | B25026_009  |
+| Population without Vehicle | B08014_002  |
+
+Based on these ACS variables, we further computed the following variables:
+- **PctMinority** : percentage of minority population, where minority here refers to anyone who is Asian, Latinx, or Black.   
+- **PctAging**: percentage of aging population, where aging here refers to anyone who is over 70 years old.  
+- **PctForeign**: percentage of population who are non-US citizens.  
+- **PctBachelors**: percentage of population with at least a Bachelor's degree.   
+- **PctRenter**: percentage of renter occupied households.   
+- **PctNoCar**:percentage of population without a vehicle.  
+- **PctPoverty**: poverty rate.  
+
+The following code gives an example of the data cleaning steps we performed using 2010 ACS data, where we downloaded the ACS data, reprojected the data, removed census tracts outside of Boston, renamed the columns, performed additional data manipulations, and dumped unnecessary variables. 
+
+```{r define_acs_var, warning = FALSE, eval = FALSE, message=FALSE, include=FALSE}
 
 acs_var = c("B02001_001E", # total population
             "B02001_002E", # white population
@@ -108,14 +150,14 @@ acs_var = c("B02001_001E", # total population
 ```
 
 
-```{r non_boston_county}
+```{r non_boston_county, warning = FALSE, eval = FALSE, message=FALSE, include=FALSE}
 
 remove <- c("25025180400", "25025990101", "25025180301", "25025160400", "25025180500", "25025160601", "25025180200", "25025160300", "25025160200", "25025180101", "25025170502", "25025160502", "25025170701", "25025170501", "25025170800", "25025170200", "25025170400", "25025170100", "25025170100", "25025170601", "25025170300", "25025170702","25025160602", "25025160501", "25025160101")
 
 ```
 
 
-```{r boston_2010_data}
+```{r boston_2010_data, warning = FALSE, eval = FALSE, message=FALSE,  class.source = 'fold-show'}
 
 boston10 <- 
   get_acs(geography = "tract", variables = acs_var, 
@@ -158,8 +200,32 @@ boston10 <-
 
 ```
 
+Note: Boston city is part of the larger Suffolk county in Massachusetts, which also contains the city of Chelsea, Revere, and Winthrop. To limit our analysis within Boston, we have to remove census tracts outside. The map below shows Boston relative to other cities in Suffolk county.  
 
-```{r boston_2019_data}
+```{r suffolk_county, warning = FALSE, eval = FALSE, message=FALSE}
+
+Suffolk <- 
+  get_acs(geography = "tract", variables = "B02001_001E", 
+          year=2010, state='MA', county=025, geometry=T, output="wide")
+
+ggplot() + 
+  geom_sf(data=st_union(Suffolk), fill= "#D3D3D3", color = "white", size = 2) +
+  geom_sf(data=st_union(boston10), fill= "#bd7ebe", color = "white", size = 2) +
+  labs(title = "Boston City in Suffolk County",
+       caption = "Data: American Community Survey 2010 and 2019",
+       color = "Boston") +
+  theme_light() +
+  theme(plot.title = element_text(size = 12, face = "bold")) +
+  annotate(geom = "text",x = -71.10,y = 42.3, size = 4, label = "Boston",color = "white") +
+  annotate(geom = "text",x = -71.04,y = 42.40, size = 3, label = "Chelsea",color = "black") +
+  annotate(geom = "text",x = -71.01,y = 42.42, size = 3, label = "Revere",color = "black") +
+  annotate(geom = "text",x = -70.97,y = 42.38, size = 3, label = "Winthrop",color = "black") 
+
+```
+
+Now, we repeat the same process to obtain the 2019 ACS data and combine it with the 2010 data. 
+
+```{r boston_2019_data, warning = FALSE, eval = FALSE, message=FALSE}
 
 boston19 <- 
   get_acs(geography = "tract", variables = acs_var, 
@@ -200,16 +266,16 @@ boston19 <-
          year = "2019") %>% 
   dplyr::select(-Whites,-African_Americans, -Asians, -Latinx, -M70_74, -M75_79, -M80_85, -M85, -FM70_74, -FM75_79, -FM80_85, -FM85, -College, -Graduate, -TotalPoverty, -NoCar, -Renter, -Foreigner)
 
-```
-
-```{r combine_boston_data}
-
 allTracts <- rbind(boston10,boston19)
-
 ```
 
 
-```{r transit_data}
+## Transit Data
+
+The Boston transit data is provided by [MassGIS](https://www.mass.gov/info-details/massgis-data-mbta-rapid-transit#overview-), through which we downloaded the raw file and uploaded it to our GitHub repository. To ensure data consistency, we have repojected this layer for it to match with our census data, and have re-categorized transit lines. 
+
+
+```{r transit_data, warning = FALSE, eval = FALSE, message=FALSE, class.source = 'fold-show'}
 
 boston_stops <- st_read("https://raw.githubusercontent.com/emilyzhou112/MUSA5080-Boston-TOD/main/data/boston_stps.geojson") %>%
   st_transform(st_crs(boston10)) %>% 
@@ -218,30 +284,9 @@ boston_stops <- st_read("https://raw.githubusercontent.com/emilyzhou112/MUSA5080
 
 ```
 
+The MBTA Rapid Transit layers represent the core subway system lines and stations within the Greater Boston area. There are five subways lines in Boston: Red, Green, Orange, Blue, and Silver, which services many Boston neighborhoods plus parts of Cambridge, Somerville, Revere, Malden, Brookline, Newton, Milton, and Quincy. To limit our scope of analysis within Boston, we have removed subway stations outside of Boston. The map below shows transit stops used in our study as well as those that we have excluded. 
 
-```{r suffolk_county}
-
-Suffolk <- 
-  get_acs(geography = "tract", variables = "B02001_001E", 
-          year=2010, state='MA', county=025, geometry=T, output="wide")
-
-ggplot() + 
-  geom_sf(data=st_union(Suffolk), fill= "#D3D3D3", color = "white", size = 2) +
-  geom_sf(data=st_union(boston10), fill= "#bd7ebe", color = "white", size = 2) +
-  labs(title = "Boston City in Suffolk County",
-       caption = "Data: American Community Survey 2010 and 2019",
-       color = "Boston") +
-  theme_light() +
-  theme(plot.title = element_text(size = 12, face = "bold")) +
-  annotate(geom = "text",x = -71.10,y = 42.3, size = 4, label = "Boston",color = "white") +
-  annotate(geom = "text",x = -71.04,y = 42.40, size = 3, label = "Chelsea",color = "black") +
-  annotate(geom = "text",x = -71.01,y = 42.42, size = 3, label = "Revere",color = "black") +
-  annotate(geom = "text",x = -70.97,y = 42.38, size = 3, label = "Winthrop",color = "black") 
-
-```
-
-
-```{r visualize_stops}
+```{r visualize_stops, warning = FALSE, eval = FALSE, message=FALSE}
 
 MBTA <- st_read("https://raw.githubusercontent.com/emilyzhou112/MUSA5080-Boston-TOD/main/data/MBTA_node.geojson") %>%
   st_transform(st_crs(boston10))
@@ -261,7 +306,9 @@ ggplot() +
 
 ```
 
-```{r delineate_TOD}
+To delineate census tracts that are in close proximity to transit stations, we created a half mile buffer around all transit stations, and compared it to all the centroids of our census tracts. If the centroid is located within the half mile buffer, we categorize that tract as "TOD"; otherwise, this tract is considered "Non-TOD". An additional data manipulation here is to adjust median rent and median household income for inflation.  
+
+```{r delineate_TOD, warning = FALSE, eval = FALSE, message=FALSE, class.source = 'fold-show'}
 
 stops_buffer <- st_union(st_buffer(boston_stops, 804)) %>% 
       st_sf() 
@@ -283,8 +330,9 @@ allTracts.group <-
 
 ```
 
+The map below shows the distribution of TOD and Non-TOD tracts in Boston, using the above method. 
 
-```{r visualize_tod}
+```{r visualize_tod,  warning = FALSE, eval = FALSE, message=FALSE}
 
 allTracts.group %>% 
   filter(year == 2010 ) %>% 
@@ -304,10 +352,12 @@ allTracts.group %>%
 
 ```
 
+# Data Analysis
 
 ## Demographic Characteristics 
 
-```{r percentage_aging}
+
+```{r percentage_aging, warning = FALSE, eval = FALSE, message=FALSE}
 
 allTracts.group %>% 
   ggplot()+
