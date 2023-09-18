@@ -1,10 +1,10 @@
 ---
-title: "Transient Oriented Development in Boston"
+title: "Transit Oriented Development in Boston"
 author: "Emily Zhou"
 date: "`r Sys.Date()`"
 output:
   html_document:
-    theme: flatly
+    theme: simplex
     toc: true
     toc_float: true
     code_folding: hide
@@ -20,13 +20,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Version 1.0 \| First Created Sep 15, 2023 \| Updated Sep 20, 2023
 
-Key words: Multiple Ring Buffer, Indicators, Transit Oriented Development, Gentrification, Boston
+Keywords: Multiple Ring Buffer, Indicators, Transit Oriented Development, Gentrification, Boston
 
 # Introduction
 
-In city planning, transit-oriented development (TOD) is a type of urban development practice that aims to maximize the amount of residential, business, and leisure space within walking distance of public transport. TOD offers a range of benefits that all contribute to creating a more vibrant, sustainable, and inclusive communities. For example, a community with a strong and dependable transit system and streetscaping elements can discourage vehicle dependence and congestion. This further leads to reduction in greenhouse gas emissions per capita and a smaller carbon footprint. In addition, as cities become more walkable, TOD can stimulate economic growth by attracting business and creating jobs. This includes bringing in mixed-use developments, such as retail, dining, and entertainment options within easy reach of resident. Moreover, TOD increases property values in surrounding areas. For developers and governments, this land value capitalization is particularly important. If renters and home buyers are willing to pay more to live near transit amenities, it should be reflected in higher land values and property tax returns near stations. 
+In city planning, transit-oriented development (TOD) is a type of urban development practice that aims to maximize the amount of residential, business, and leisure space within walking distance of public transport. TOD offers a range of benefits that all contribute to creating a more vibrant, sustainable, and inclusive communities. For example, a community with a strong and dependable transit system and streetscaping elements can discourage vehicle dependence and congestion. This further leads to reduction in greenhouse gas emissions per capita and a smaller carbon footprint. In addition, as cities become more walkable, TOD can stimulate economic growth by attracting business and creating jobs. This includes bringing in mixed-use developments, such as retail, dining, and entertainment options within easy reach of resident. Moreover, TOD increases property values in surrounding areas, which is particularly important for real-estate developers and governments. 
 
-Transit oriented development has been a large part of Boston’s growth. The Boston Redevelopment Authority has been undertaking a TOD initiative to build on and reinforce Boston's existing and emerging neighborhood centers. Their goal is to **connect all neighborhood centers into a comprehensive transit network** and to **support that network with appropriate development patterns near these neighborhood centers**. To contribute to this work, this report conducts a comprehensive analysis of existing TOD patterns in Boston. Through visualizing temporal changes in demographic, social, and economic characteristics of neighborhoods across Boston, examining the spatial distribution of transit stops, and comparing the differences of development patterns between TOD and Non-TOD tracts, we aim to address the following questions: 
+Transit oriented development has been a large part of Boston’s growth. The [Boston Redevelopment Authority](https://www.bostonplans.org/planning/planning-initiatives/fostering-transit) has been undertaking a TOD initiative to build on and reinforce Boston's existing and emerging neighborhood centers. Their goal is to **connect all neighborhood centers into a comprehensive transit network** and to **support that network with appropriate development patterns near these neighborhood centers**. To contribute to theri work, this report conducts a comprehensive analysis of existing TOD patterns in Boston. Through visualizing temporal changes in demographic, social, and economic characteristics of neighborhoods across Boston, examining the spatial distribution of transit stops, and comparing the differences of development patterns between TOD and Non-TOD tracts, we aim to address the following questions: 
 
 1. Who is living around transit stations in Boston? 
 
@@ -84,7 +84,7 @@ overwrite = TRUE)
 We are using the America Community Survey (5-year estimate) for year 2010 and 2019 in this report. We chose the ACS data because it collects detailed demographic, social, economic, and housing data on a wide range of topics, providing a more comprehensive view of a community's characteristics in Boston. We chose 2019 as the end year because COVID-19 since 2020 has drastically changed people's work and travel behaviors: the widespread adoption of remote work during the pandemic would certainly led to decline in the demand for office space and the need for transit-oriented office developments. In order to better understand if there's a difference between individuals living in TOD and Non-TOD neighborhood over time, we chose the following ACS variables, categorized into demographic, social, and economic characteristics, for our analysis. 
 
 | Variable Name              | ACS Name    | 
-| :------------------------: | :----------:|  
+| :----------: | :----------:|  
 | **Demographic**            |             |
 | Total Population           | B02001_001  |
 | White Population           | B02001_002  |
@@ -126,7 +126,7 @@ Based on these ACS variables, we further computed the following variables:
 
 - **PctPoverty**: poverty rate.  
 
-The following code gives an example of the data cleaning steps we performed using 2010 ACS data, where we downloaded the ACS data, reprojected the data, removed census tracts outside of Boston, renamed the columns, performed additional data manipulations, and dumped unnecessary variables. 
+The following code gives an example of the data cleaning steps we performed using 2010 ACS data, where we downloaded the ACS data, reprojected the data, removed areas outside of Boston, renamed the columns, performed additional data manipulations, and discarded unnecessary variables. 
 
 ```{r define_acs_var, include=FALSE}
 
@@ -204,13 +204,17 @@ boston10 <-
          year = "2010") %>% 
   dplyr::select(-Whites,-African_Americans, -Asians, -Latinx, -M70_74, -M75_79, -M80_85, -M85, -FM70_74, -FM75_79, -FM80_85, -FM85, -College, -Graduate, -TotalPoverty, -NoCar, -Renter, -Foreigner)
 
-Suffolk <- 
-  get_acs(geography = "tract", variables = "B02001_001E", 
-          year=2010, state='MA', county=025, geometry=T, output="wide")
 
 ```
 
-Note: Boston city is part of the larger Suffolk county in Massachusetts, which also contains the city of Chelsea, Revere, and Winthrop. To limit our analysis within Boston, we have to remove census tracts outside. The map below shows Boston relative to other cities in Suffolk county.  
+```{r get suffolk, warning = FALSE, cache=TRUE, message=FALSE, include=FALSE}
+Suffolk <- 
+  get_acs(geography = "tract", variables = "B02001_001E", 
+          year=2010, state='MA', county=025, geometry=T, output="wide")
+```
+
+
+Note: Boston city is part of the larger Suffolk county in Massachusetts, which also includes the city of Chelsea, Revere, and Winthrop. To limit our analysis within Boston, we removed all areas outside Boston. The map below shows Boston relative to other cities in Suffolk county.  
 
 
 ```{r suffolk_county, warning = FALSE, cache=TRUE}
@@ -313,7 +317,7 @@ ggplot() +
 
 ```
 
-To delineate census tracts that are in close proximity to transit stations, we created a half mile buffer for each transit stations, and compared them to all the centroids of our census tracts. If the centroid is located within the half mile buffer, we categorize that tract as "TOD"; otherwise, this tract is considered "Non-TOD". An additional data manipulation here is to adjust median rent and median household income for inflation.  
+To delineate census tracts that are in close proximity to transit stations, we delineated a half mile area for each transit stations, and compared them to all the centroids (center ponits) of census tracts. If the centroid is located within the half mile area, we categorize that tract as "TOD"; otherwise, this tract is considered "Non-TOD". An additional data manipulation here is to adjust median rent and median household income for inflation.  
 
 ```{r delineate_TOD, warning = FALSE, message=FALSE, class.source = 'fold-show'}
 
@@ -608,7 +612,7 @@ allTracts.group %>%
 
 To support our observations above, we further calculated the mean for all of our variables, which allows us to better examine changes in population characteristics across space and time as a whole. 
 
-```{r all_variables_summarize, warning = FALSE, class.source = 'fold-show', results='hide'}
+```{r all_variables_summarize, warning = FALSE, class.source = 'fold-show', results='hide', message=FALSE}
 
 allTracts.Summary <- 
   st_drop_geometry(allTracts.group) %>%
@@ -682,7 +686,7 @@ allTracts.Long <- allTracts.Summary %>%
 
 ```
 
-Looking at the percentage change of variables between Non-TOD and TOD tracks, we may see that from 2010 to 2019, 1) median house rent and median household income increases significantly in TOD tracks compared to Non-TOD, 2) poverty rate was significantly reduced in TOD tracks compared to Non-TOD, 3) population increase is more salient in Non-TOD tracks than TOD. 
+Looking at the percentage change of variables between Non-TOD and TOD tracts, we may see that from 2010 to 2019, 1) median house rent and median household income increases significantly in TOD tracts compared to Non-TOD, 2) poverty rate was significantly reduced in TOD tracts compared to Non-TOD, 3) population increase is more salient in Non-TOD tracts than TOD. 
 
 ```{r all_variables_bar, warning = FALSE}
 
@@ -693,7 +697,7 @@ allTracts.Long %>%
   facet_wrap(~TOD) +
   coord_flip() +
   scale_fill_manual(values = c("#7eb0d5", "#b2e061")) +  
-  labs(title = "Percentage Change 2010-2019 for TOD and Non-TOD Tracks",
+  labs(title = "Percentage Change 2010-2019 for TOD and Non-TOD Tracts",
        caption = "Data: American Community Survey 2010 and 2019") +
   ylab ("Percentage Change") +
   theme(legend.position = "bottom",
@@ -740,7 +744,7 @@ ggplot() +
   scale_colour_manual(values = c("#7eb0d5","#b2e061", "#ffb55a", "#ffee65", "#fd7f6f", "#bd7ebe"), name = "Stops") +
   labs(title = "Population within 0.5 Mile of Tansit Stops",
        subtitle = "Dot size proportional to population",
-       caption = "Data: American Community Survey 2010 and 2019") +
+       caption = "Data: American Community Survey 2019") +
   theme_light() +   
   theme(plot.subtitle = element_text(size = 9,face = "italic"),
         plot.title = element_text(size = 12, face = "bold"))
@@ -759,7 +763,7 @@ ggplot() +
   scale_colour_manual(values = c("#7eb0d5","#b2e061", "#ffb55a", "#ffee65", "#fd7f6f", "#bd7ebe"), name = "Stops") +
   labs(title = "Median Rent within 0.5 Mile of Tansit Stops",
        subtitle = "Dot size proportional to rent",
-       caption = "Data: American Community Survey 2010 and 2019") +
+       caption = "Data: American Community Survey 2019") +
   theme_light() +   
   theme(plot.subtitle = element_text(size = 9,face = "italic"),
         plot.title = element_text(size = 12, face = "bold"))
@@ -785,10 +789,9 @@ ggplot() +
 
 ```
 
-The figure below shows that overall, rent decreases as distance from transit stops gets greater. However, the relationship is not linear as we see that rent is increasing from 2500 to 4000 meters. This implies that transit stations is not the only factor defining rent. In other words, it could be 
-households are willing to pay more for transit amenities, or that they pay for other types of amenities in neighborhoods that happen to also be transit-rich: proximity to transit station only partially influence their decisions to live in nearby locations. 
+The figure below shows that overall, rent decreases as distance from transit stops gets greater. However, the relationship is not linear as we see that rent is increasing from 2500 to 4000 meters. This implies that transit stations is not the only factor defining rent. In other words, it could be households are willing to pay more for transit amenities, or that they pay for other types of amenities in neighborhoods that happen to also be transit-rich: proximity to transit station only partially influence their decisions to live in nearby locations. 
 
-```{r line_plot, warning = FALSE}
+```{r line_plot, warning = FALSE, message = FALSE, results='hide'}
 
 allTracts.rings <-
   st_join(st_centroid(dplyr::select(allTracts, GEOID, year)),
@@ -823,33 +826,36 @@ ggplot(allTracts.rings.summary, aes(x = distance, y = Mean_Rent)) +
 
 To quickly summarize, Boston is gentrifying between 2010 and 2019, with increasing population, diversity, median household income, median rent, and education attainment as well as decreasing poverty rate throughout the city. There's difference in terms of population characteristics between TOD and Non-TOD regions, where TOD attracts mostly renters who are younger, wealthier, and well-educated, whereas Non-TOD tracts' households consist larger concentration of minority and aging population with lower education attainment. 
 
-In addition, there's intra-regional difference within TOD tracks, where median rent for houses next to transit stations that are in city centers being the most expensive. Further, rent did not just decrease as we move away from transit stations. This leads us to conclude that not all transit stations are as appealing as each other. Proximity to transit station only affects people's decision to live in nearby locations to a certain extent. TOD neighborhoods in Boston is able to attract younger and wealthier individual not only because it offers convenience in public transportation, but also could because Bostonians value the cultural amenities, entertainment & nightlife, as well as employment and academic opportunities that are happend to be within half a mile of these transit stops. 
+In addition, there's intra-regional difference within TOD tracts, where median rent for houses next to transit stations that are in city center being the most expensive. Further, rent did not only decrease as we move away from transit stations. This leads us to conclude that not all transit stations are as appealing as each other. Proximity to transit station only affects people's decision to live in nearby locations to a certain extent. **TOD neighborhoods in Boston is able to attract younger and wealthier individual not only because they offer convenience in public transportation, but also could because Bostonians value the cultural amenities, entertainment & nightlife, as well as employment and academic opportunities that are happened to be within half a mile of these transit stops.** 
 
-Despite that Boston is a pretty walkable city and that people's living quality will not be significantly impacted if not living within half a mile to a transit station, is there anything we could do improve the accessibility of public transport in Non-TOD neighborhood in Boston amid the city's goal to "connect all neighborhood centers into a comprehensive transit network"? We produced the blow bivariate choropleth map, thinking if we could start by potentially adding a transit station in Non-TOD neighborhoods where there's both a high concentration of aging and minority population.  
+While Boston is a highly walkable city, planning official should still work towards making public transportation more accessible to neighborhoods that are currently. Non-TOD and developing parcels near transit stations, which could alleviate the housing and amenity shortages at city center and reduce intra-regional disparities. Despite that Non-TOD neighborhood have higher car ownecrship rate, this does not mean that public transportation planning is not important in these neighborhoods. For places like the city center where it is hard to get to through driving and where business and intellectual opportunities accumulate, public transportation is the best way to connect different neighborhoods together.  Indeed, this aligns with the city's goal to "connect all neighborhood centers into a comprehensive transit network". 
 
+With the current data we have, how do we improve public transit accessibility in Non-TOD neighborhoods in Boston? We attempted to answer this question with a bivariate map, considering the possibility of extending existing transit lines and adding a transit station in Non-TOD neighborhoods where there's both a high concentration of aging and minority population (two population subgroups that are often excluded in TOD).The map below highlights an area in southern Boston with high number of both population subgroups. We encouraged transportation planners to further investigate the possibility of future transit developments in these locations. 
 
 ```{r bivariate_map, warning = FALSE}
 
 
 bi_data <- bi_class(boston19, x = pctMinority, y = pctAging, style = "quantile", dim = 3) #  a 3*3 color-schemed bi-variate choropleth 
 
+
 bi_map <- ggplot() +
   geom_sf(data = bi_data, mapping = aes(fill = bi_class), color = "transparent", show.legend = FALSE) +
   bi_scale_fill(pal = "DkCyan", dim = 3) + 
   labs(title = "Bivariate Choropleth of Pct Minority over Pct Aging Population") + 
-  geom_sf(data = boston_stops, colour = "red", alpha = 0.8, size = 0.5) +
+  geom_sf(data = boston_stops, colour = "yellow", alpha = 0.8, size = 0.5) +
+  labs(caption = "Data: American Community Survey 2019") +
   theme_light() +
-  theme(plot.title = element_text(size = 12, face = "bold")) 
+  theme(plot.title = element_text(size = 12, face = "bold"))
 
 legend <- bi_legend(pal = "DkCyan",
                     dim = 3,
                     xlab = "PctMinority ",
                     ylab = "PctAging ",
                     size = 5.8)
-  
+
 ggdraw() +
   draw_plot(bi_map, 0, 0, 1, 1) +
-  draw_plot(legend, 0.1, 0.1, 1.2, 0.23)
+  draw_plot(legend, 0.1, 0.2, 1.2, 0.23)
 ```
 
 Finally, there is one important limitation of this study that has to be addressed. We mentioned before that the MBTA transit lines go beyond the boundary of Boston cities. In this case, it is likely that some census tracts at the edge of Boston that are categorized as Non-TOD are actually TOD.Future study at a regional scale should consider examine TOD development in Boston considering all transit stops in the Greater Boston Areas as well as all types of transit stops. 
