@@ -675,7 +675,7 @@ allTracts.Summary %>%
 
 ## Further Analysis 
 
-We did some further analysis to rearrange our tables and calculate percentage change. This includes pivoting the table twice to make year 2010 and 2019 two separate columns 
+We did some further analysis to rearrange our tables and calculate percentage point change. This includes pivoting the table twice to make year 2010 and 2019 two separate columns 
 
 ```{r percentage_change, warning = FALSE, class.source = 'fold-show'}
 
@@ -735,12 +735,29 @@ stops_summary <- boston_stops %>%
 
 Not surprisingly, the map below shows that transit station in city center attracts more people to live nearby while as distance from the city center gets greater, the dot size becomes smaller, meaning there's less people living nearby. 
 
+```{r format_dots, warning=FALSE, include=FALSE}
+boston10_4326 <- st_transform(boston10, crs = 4326)
+stops_summary_4326 <- st_transform(stops_summary, crs = 4326)
+
+stops_summary_coords <- st_coordinates(stops_summary_4326)
+stops_summary_df <- data.frame(
+  X = stops_summary_coords[, 1],
+  Y = stops_summary_coords[, 2],
+  total_population = stops_summary$total_population,  # Include other attributes here
+  rent = stops_summary$median_rent, 
+  stops = stops_summary$stops# Include additional attributes as needed
+)
+
+```
+
+
+
 ```{r graduated_pop, warning=FALSE}
 
 ggplot() +
-  geom_sf(data=st_union(boston10), fill= "#D3D3D3", color = "white", size = 2) +
-  geom_sf(data=stops_summary, aes(size=total_population, color = stops %>% str_to_title())) +
-  scale_size(range = c(0.5, 3), name = "Population") +    
+  geom_sf(data=st_union(boston10_4326), fill= "#D3D3D3", color = "white", size = 2) +
+  geom_point(data = stops_summary_df, aes(x = X, y = Y, size = total_population, color = str_to_title(stops))) +
+  scale_size(range = c(0.5, 4.5), name = "Population") +    
   scale_colour_manual(values = c("#7eb0d5","#b2e061", "#ffb55a", "#ffee65", "#fd7f6f", "#bd7ebe"), name = "Stops") +
   labs(title = "Population within 0.5 Mile of Tansit Stops",
        subtitle = "Dot size proportional to population",
@@ -757,9 +774,9 @@ Similarly, median rent is the highest around transit stations in the city center
 
 
 ggplot() +
-  geom_sf(data=st_union(boston10), fill= "#D3D3D3", color = "white", size = 2) +
-  geom_sf(data=stops_summary, aes(size=median_rent, color = stops %>% str_to_title())) +
-  scale_size(range = c(0.5, 3), name = "Rent") +    
+  geom_sf(data=st_union(boston10_4326), fill= "#D3D3D3", color = "white", size = 2) +
+  geom_point(data = stops_summary_df, aes(x = X, y = Y, size = rent, color = str_to_title(stops))) +
+  scale_size(range = c(0.5, 4), name = "Rent") +    
   scale_colour_manual(values = c("#7eb0d5","#b2e061", "#ffb55a", "#ffee65", "#fd7f6f", "#bd7ebe"), name = "Stops") +
   labs(title = "Median Rent within 0.5 Mile of Tansit Stops",
        subtitle = "Dot size proportional to rent",
